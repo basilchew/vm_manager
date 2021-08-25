@@ -126,6 +126,23 @@ function ubu_enable_host_gvt(){
     fi
 }
 
+function ubu_enable_host_sriov(){
+   if [[ ! `cat /etc/default/grub` =~ "i915.enable_guc=0x7" ]]; then
+        read -p "The grub entry in '/etc/default/grub' will be updated for enabling SRIOV, do you want to continue? [Y/n]" res
+        if [ x$res = xn ]; then
+            exit 0
+        fi
+        sed -i "s/GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"i915.enable_guc=0x7 /g" /etc/default/grub
+        update-grub
+
+        echo -e "\nkvmgt\nvfio-iommu-type1\nvfio-mdev\n" >> /etc/initramfs-tools/modules
+        update-initramfs -u -k all
+
+        reboot_required=1
+
+    fi
+}
+
 function check_os() {
     local version=`cat /proc/version`
 
@@ -420,6 +437,7 @@ ubu_changes_require
 ubu_install_qemu_gvt
 ubu_build_ovmf_gvt
 ubu_enable_host_gvt
+ubu_enable_host_sriov
 
 prepare_required_scripts
 setup_sof

@@ -382,6 +382,44 @@ function setup_softpipe() {
     fi
 }
 
+function setup_sriov() {
+    GUEST_DISP_TYPE="-display egl-headless"
+
+    # Detect total number of VFs
+    totalvf=$(</sys/bus/pci/devices/0000\:00\:02.0/sriov_totalvfs)
+
+    if [ $totalvf -eq 0 ]; then
+        echo "Error: total number of VF is 0"
+        exit
+    else
+        echo "Total VF $totalvf"
+    fi
+
+    # Setup VFIO
+    local vendor=$(cat /sys/bus/pci/devices/0000:00:02.0/iommu_group/devices/0000:00:02.0/vendor)
+    local device=$(cat /sys/bus/pci/devices/0000:00:02.0/iommu_group/devices/0000:00:02.0/device)
+    sudo sh -c "modprobe i2c-algo-bit"
+    sudo sh -c "sudo modprobe video"
+    sudo sh -c "echo '0' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
+    sudo sh -c "echo $totalvf | sudo tee -a /sys/class/drm/card0/device/sriov_numvfs > /dev/null"
+    sudo sh -c "echo '1' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
+    sudo sh -c "sudo modprobe vfio-pci"
+    sudo sh -c "echo '$vendor $device' | sudo tee -a /sys/bus/pci/drivers/vfio-pci/new_id > /dev/null"
+
+    # Detect first available VF
+    for (( avail=1; avail<=totalvf; avail++ )); do
+        is_enabled=$(</sys/bus/pci/devices/0000:00:02.$avail/enable)
+        if [ $is_enabled = 0 ]; then
+            echo "Using VF $avail"
+            break;
+        fi
+    done
+
+    # Setup configuration
+    GUEST_VGA_DEV="-device vfio-pci,host=0000:00:02.$avail "
+}
+
+
 function set_graphics() {
     OIFS=$IFS IFS=',' sub_param=($1) IFS=$OIFS
     GUEST_GRAPHIC_MODE=${sub_param[0]}
@@ -395,8 +433,10 @@ function set_graphics() {
         setup_virtio_gpu ${sub_param[@]} || return -1
     elif [[ ${sub_param[0]} == "SOFTPIPE" ]]; then
         setup_softpipe ${sub_param[@]} || return -1
+    elif [[ ${sub_param[0]} == "SRIOV" ]]; then
+        setup_sriov ${sub_param[@]} || return -1
     else
-        echo "E: VGPU only support VirtIO,GVT-g,GVT-d,SOFTPIPE. $1 is not supported"
+        echo "E: VGPU only support VirtIO,GVT-g,GVT-d,SOFTPIPE,SRIOV. $1 is not supported"
         return -1
     fi
 }
@@ -672,6 +712,7 @@ function show_help() {
     printf "\t\tSOFTPIPE, sub-param: display=[on|off]. eg. \"-g SOFTPIPE,display=on\"\n"
     printf "\t\tGVT-g, sub-param: uuid=[vgpu uuid],display=[on|off]. eg. \"-g GVT-g,uuid=4ec1ff92-81d7-11e9-aed4-5bf6a9a2bb0a,display=on\", if uuid is not specified, a hardcoded uuid will be used\n"
     printf "\t\tGVT-d: sub-param: romfile=[file path of rom]. eg. \"-g GVT-d,romfile=/path/to/romfile\"\n"
+    printf "\t\tSRIOV sub-param: none. eg. \"-g SRIOV\"\n"
     printf "\t-d  specify guest virtual disk image, eg. \"-d /path/to/android.img\"\n"
     printf "\t-f  specify guest firmware image, eg. \"-d /path/to/ovmf.fd\"\n"
     printf "\t-v  specify guest vsock cid, eg. \"-v 4\"\n"
