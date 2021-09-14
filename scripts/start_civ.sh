@@ -383,7 +383,29 @@ function setup_softpipe() {
 }
 
 function setup_sriov() {
-    GUEST_DISP_TYPE="-display egl-headless"
+    # Set up hugepages
+    if [ "${GUEST_MEM: -1}" = "G" ]; then
+        # assuming GUEST_MEM format is "-m 4G"
+        hugepg=$(( "${GUEST_MEM: -2:1}" * 1024 ))
+    elif [ "${GUEST_MEM: -1}" = "M" ]; then
+        # assuming GUEST_MEM format is "-m 4096M"
+        hugepg=$(( "${GUEST_MEM: -5:4}" ))
+    fi
+    echo "Setting hugepages $hugepg"
+    sudo sh -c "echo $hugepg | sudo tee /proc/sys/vm/nr_hugepages > /dev/null"
+
+    # Check and wait for hugepages to be allocated
+    read_hugepg=0
+    count=0
+    while [ $((read_hugepg)) -ne $hugepg ]
+    do
+        if [ $((count++)) -ge 20 ]; then
+            echo "Error: unable to allocate hugepages"
+            exit
+        fi
+        sleep 0.5
+        read_hugepg=$(</proc/sys/vm/nr_hugepages)
+    done
 
     # Detect total number of VFs
     totalvf=$(</sys/bus/pci/devices/0000\:00\:02.0/sriov_totalvfs)
@@ -391,9 +413,11 @@ function setup_sriov() {
     if [ $totalvf -eq 0 ]; then
         echo "Error: total number of VF is 0"
         exit
-    else
-        echo "Total VF $totalvf"
+    elif [ $totalvf -gt 4 ]; then
+        # Limit to 4 to conserve memory
+        totalvf=4
     fi
+    echo "Total VF $totalvf"
 
     # Setup VFIO
     local vendor=$(cat /sys/bus/pci/devices/0000:00:02.0/iommu_group/devices/0000:00:02.0/vendor)
@@ -416,7 +440,7 @@ function setup_sriov() {
     done
 
     # Setup configuration
-    GUEST_VGA_DEV="-device vfio-pci,host=0000:00:02.$avail "
+    GUEST_VGA_DEV="-device virtio-vga,max_outputs=1,blob=true, -device vfio-pci,host=0000:00:02.$avail, -object memory-backend-memfd,hugetlb=on,id=mem1,size=${GUEST_MEM:3} -machine memory-backend=mem1"
 }
 
 
