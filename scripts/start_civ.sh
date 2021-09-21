@@ -386,25 +386,29 @@ function setup_sriov() {
     # Set up hugepages
     if [ "${GUEST_MEM: -1}" = "G" ]; then
         # assuming GUEST_MEM format is "-m 4G"
-        hugepg=$(( "${GUEST_MEM: -2:1}" * 1024 ))
+        required_hugepg=$(( "${GUEST_MEM: -3:2}" * 512 ))
     elif [ "${GUEST_MEM: -1}" = "M" ]; then
         # assuming GUEST_MEM format is "-m 4096M"
-        hugepg=$(( "${GUEST_MEM: -5:4}" ))
+        required_hugepg=$(( "${GUEST_MEM: -5:4}" / 2 ))
     fi
-    echo "Setting hugepages $hugepg"
-    sudo sh -c "echo $hugepg | sudo tee /proc/sys/vm/nr_hugepages > /dev/null"
+
+    free_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/free_hugepages)
+    nr_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)
+    new_nr_hugepg=$(( nr_hugepg - free_hugepg + required_hugepg ))
+    echo "Setting hugepages $new_nr_hugepg"
+    sudo sh -c "echo $new_nr_hugepg | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages > /dev/null"
 
     # Check and wait for hugepages to be allocated
     read_hugepg=0
     count=0
-    while [ $((read_hugepg)) -ne $hugepg ]
+    while [ $((read_hugepg)) -ne $new_nr_hugepg ]
     do
         if [ $((count++)) -ge 20 ]; then
-            echo "Error: unable to allocate hugepages"
+            echo "Error: insufficient memory to allocate hugepages"
             exit
         fi
         sleep 0.5
-        read_hugepg=$(</proc/sys/vm/nr_hugepages)
+        read_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)
     done
 
     # Detect total number of VFs
