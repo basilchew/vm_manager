@@ -341,8 +341,8 @@ function ubu_update_bt_fw() {
         reboot_required=1
     else
         usb_devices="/sys/kernel/debug/usb/devices"
-        cat $usb_devices | grep  -q "Cls=e0(wlcon) Sub=01 Prot=01 Driver=btusb"
-        if [ $? != 0 ]; then
+        count="$(grep -c 'Cls=e0(wlcon) Sub=01 Prot=01 Driver=btusb' $usb_devices || true)"
+        if [ $count -eq 0 ]; then
             echo " Skip the host BT firmware update as BT controller is not present"
         else
             echo "Host Bluetooth firmware update failed. Run the setup again after cold reboot"
