@@ -447,6 +447,29 @@ function setup_sriov() {
     GUEST_VGA_DEV="-device virtio-vga,max_outputs=1,blob=true, -device vfio-pci,host=0000:00:02.$avail, -object memory-backend-memfd,hugetlb=on,id=mem1,size=${GUEST_MEM:3} -machine memory-backend=mem1"
 }
 
+function cleanup_sriov() {
+    # Detect number of VFs
+    numvf=$(</sys/bus/pci/devices/0000\:00\:02.0/sriov_numvfs)
+
+    if [ $numvf -ne 0 ]; then
+        # Check that all VFs are disabled
+        do_cleanup=1
+        for (( avail=1; avail<=numvf; avail++ )); do
+            is_enabled=$(</sys/bus/pci/devices/0000:00:02.$avail/enable)
+            if [ $is_enabled = 1 ]; then
+                do_cleanup=0
+                break;
+            fi
+        done
+
+        # Clean up if needed
+        if [ $do_cleanup -eq 1 ]; then
+            sudo sh -c "echo '0' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
+            sudo sh -c "echo '0' | sudo tee -a /sys/class/drm/card0/device/sriov_numvfs > /dev/null"
+            sudo sh -c "echo '1' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
+        fi
+    fi
+}
 
 function set_graphics() {
     OIFS=$IFS IFS=',' sub_param=($1) IFS=$OIFS
@@ -674,6 +697,7 @@ function cleanup() {
     cleanup_thermal_mediation
     cleanup_battery_mediation
     cleanup_pt_pci
+    cleanup_sriov
 }
 
 function error() {
