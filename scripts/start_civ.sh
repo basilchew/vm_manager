@@ -62,7 +62,7 @@ GUEST_STATIC_OPTION="\
  -enable-kvm \
  -k en-us \
  -cpu host \
- -chardev socket,id=charserial0,path=$WORK_DIR/kernel-console,server,nowait,logfile=$WORK_DIR/civ_serial.log \
+ -chardev socket,id=charserial0,path=$WORK_DIR/kernel-console,server=on,wait=off,logfile=$WORK_DIR/civ_serial.log \
  -serial chardev:charserial0 \
  -device virtio-blk-pci,drive=disk1,bootindex=1 \
  -device intel-iommu,device-iotlb=on,caching-mode=on \
@@ -698,15 +698,15 @@ function setup_qmp_pipe() {
 
 function set_guest_pwr_vol_button() {
     echo "Guest graphic mode is $GUEST_GRAPHIC_MODE"
+
+    cd $SCRIPTS_DIR
     if [[ $GUEST_GRAPHIC_MODE == "GVT-d" ]]; then
-        cd $SCRIPTS_DIR
         sudo ./vinput-manager --gvtd
-        GUEST_POWER_BUTTON='-qmp unix:./qmp-vinput-sock,server,nowait -device virtio-input-host-pci,evdev=/dev/input/by-id/Power-Button-vm0 -device virtio-input-host-pci,evdev=/dev/input/by-id/Volume-Button-vm0'
     else
-        cd $SCRIPTS_DIR
         sudo ./vinput-manager
-        GUEST_POWER_BUTTON='-device virtio-input-host-pci,evdev=/dev/input/by-id/Power-Button-vm0 -device virtio-input-host-pci,evdev=/dev/input/by-id/Volume-Button-vm0'
     fi
+
+    GUEST_POWER_BUTTON='-qmp unix:./qmp-vinput-sock,server,nowait -device virtio-input-host-pci,evdev=/dev/input/by-id/Power-Button-vm0 -device virtio-input-host-pci,evdev=/dev/input/by-id/Volume-Button-vm0'
     cd -
 }
 

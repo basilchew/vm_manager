@@ -257,8 +257,8 @@ function ubu_install_lg_client(){
 }
 
 function set_host_ui() {
+    setup_power_button
     if [[ $1 == "headless" ]]; then
-        setup_power_button
         [[ $(systemctl get-default) == "multi-user.target" ]] && return 0
         sudo systemctl set-default multi-user.target
         reboot_required=1
