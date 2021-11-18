@@ -30,7 +30,7 @@ GUEST_VSOCK="-device vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=3"
 GUEST_SHARE_FOLDER=
 GUEST_SMBIOS_SERIAL=$(dmidecode -t 2 | grep -i serial | awk '{print $3}')
 GUEST_QMP_SOCK=$WORK_DIR/.civ.qmp.sock
-GUEST_QMP_UNIX="-qmp unix:$GUEST_QMP_SOCK,server,nowait"
+GUEST_QMP_UNIX="-qmp unix:$GUEST_QMP_SOCK,server=on,wait=off"
 GUEST_NET="-device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=tcp::5554-:5554"
 GUEST_BLK_DEV=
 GUEST_AUDIO_DEV="-device intel-hda -device hda-duplex -audiodev id=android_spk,timer-period=5000,server=$XDG_RUNTIME_DIR/pulse/native,driver=pa"
@@ -671,7 +671,7 @@ function set_guest_pm() {
     if [ -f $guest_pm_ctrl_daemon ]; then
         local guest_pm_qmp_sock=$WORK_DIR/qmp-pm-sock
         $guest_pm_ctrl_daemon $guest_pm_qmp_sock &
-        GUEST_PM_CTRL="-qmp unix:$guest_pm_qmp_sock,server,nowait -no-reboot"
+        GUEST_PM_CTRL="-qmp unix:$guest_pm_qmp_sock,server=on,wait=off -no-reboot"
     fi
 }
 
@@ -706,7 +706,7 @@ function set_guest_pwr_vol_button() {
         sudo ./vinput-manager
     fi
 
-    GUEST_POWER_BUTTON='-qmp unix:./qmp-vinput-sock,server,nowait -device virtio-input-host-pci,evdev=/dev/input/by-id/Power-Button-vm0 -device virtio-input-host-pci,evdev=/dev/input/by-id/Volume-Button-vm0'
+    GUEST_POWER_BUTTON='-qmp unix:./qmp-vinput-sock,server=on,wait=off -device virtio-input-host-pci,evdev=/dev/input/by-id/Power-Button-vm0 -device virtio-input-host-pci,evdev=/dev/input/by-id/Volume-Button-vm0'
     cd -
 }
 
