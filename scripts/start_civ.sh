@@ -33,7 +33,7 @@ GUEST_QMP_SOCK=$WORK_DIR/.civ.qmp.sock
 GUEST_QMP_UNIX="-qmp unix:$GUEST_QMP_SOCK,server=on,wait=off"
 GUEST_NET="-device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=tcp::5554-:5554"
 GUEST_BLK_DEV=
-GUEST_AUDIO_DEV="-device intel-hda -device hda-duplex -audiodev id=android_spk,timer-period=5000,server=$XDG_RUNTIME_DIR/pulse/native,driver=pa"
+GUEST_AUDIO_DEV="-device intel-hda -device hda-duplex,audiodev=android_spk -audiodev id=android_spk,timer-period=5000,server=$XDG_RUNTIME_DIR/pulse/native,driver=pa"
 GUEST_EXTRA_QCMD=
 GUEST_USB_PT_DEV=
 GUEST_UDC_PT_DEV=
