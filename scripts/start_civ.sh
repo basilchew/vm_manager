@@ -388,10 +388,10 @@ function setup_sriov() {
     shift #skip first param: SRIOV
     while [[ $# -gt 0 ]]; do
         case $1 in
-            full-screen-on-monitor=*)
+            monitor=*)
                 local DISP_IDX=${1#*=}
                 [ -z $DISP_IDX ] && echo "E: Display index not specified!" && return -1
-                GUEST_DISP_TYPE+=",full-screen-on-monitor=$DISP_IDX"
+                GUEST_DISP_TYPE+=",monitor=$DISP_IDX"
                 shift
                 ;;
             *)
@@ -782,7 +782,7 @@ function show_help() {
     printf "\t\tSOFTPIPE, sub-param: display=[on|off]. eg. \"-g SOFTPIPE,display=on\"\n"
     printf "\t\tGVT-g, sub-param: uuid=[vgpu uuid],display=[on|off]. eg. \"-g GVT-g,uuid=4ec1ff92-81d7-11e9-aed4-5bf6a9a2bb0a,display=on\", if uuid is not specified, a hardcoded uuid will be used\n"
     printf "\t\tGVT-d: sub-param: romfile=[file path of rom]. eg. \"-g GVT-d,romfile=/path/to/romfile\"\n"
-    printf "\t\tSRIOV: sub-param: full-screen-on-monitor=[disp_index]. eg. \"-g SRIOV,full-screen-on-monitor=1\"\n"
+    printf "\t\tSRIOV: sub-param: monitor=[disp_index]. eg. \"-g SRIOV,monitor=1\"\n"
     printf "\t-d  specify guest virtual disk image, eg. \"-d /path/to/android.img\"\n"
     printf "\t-f  specify guest firmware image, eg. \"-d /path/to/ovmf.fd\"\n"
     printf "\t-v  specify guest vsock cid, eg. \"-v 4\"\n"
