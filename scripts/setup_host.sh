@@ -139,6 +139,11 @@ function ubu_enable_host_sriov(){
         echo -e "\nkvmgt\nvfio-iommu-type1\nvfio-mdev\n" >> /etc/initramfs-tools/modules
         update-initramfs -u -k all
 
+        # Switch to Xorg for Ubuntu 21.04
+        if [[ $(lsb_release -rs) == "21.04" ]]; then
+            sed -i "s/\#WaylandEnable=false/WaylandEnable=false/g" /etc/gdm3/custom.conf
+        fi
+
         reboot_required=1
 
     fi
