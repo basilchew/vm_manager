@@ -435,9 +435,6 @@ function setup_sriov() {
     if [ $totalvf -eq 0 ]; then
         echo "Error: total number of VF is 0"
         exit
-    elif [ $totalvf -gt 4 ]; then
-        # Limit to 4 to conserve memory
-        totalvf=4
     fi
     echo "Total VF $totalvf"
 
