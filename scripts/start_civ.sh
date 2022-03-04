@@ -430,27 +430,33 @@ function setup_sriov() {
     done
 
     # Detect total number of VFs
-    totalvf=$(</sys/bus/pci/devices/0000\:00\:02.0/sriov_totalvfs)
+    totalvfs=$(</sys/bus/pci/devices/0000\:00\:02.0/sriov_totalvfs)
 
-    if [ $totalvf -eq 0 ]; then
-        echo "Error: total number of VF is 0"
+    if [ $totalvfs -eq 0 ]; then
+        echo "Error: total number of supported VFs is 0"
         exit
     fi
-    echo "Total VF $totalvf"
+    echo "Total VFs $totalvfs"
 
-    # Setup VFIO
-    local vendor=$(cat /sys/bus/pci/devices/0000:00:02.0/iommu_group/devices/0000:00:02.0/vendor)
-    local device=$(cat /sys/bus/pci/devices/0000:00:02.0/iommu_group/devices/0000:00:02.0/device)
-    sudo sh -c "modprobe i2c-algo-bit"
-    sudo sh -c "sudo modprobe video"
-    sudo sh -c "echo '0' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
-    sudo sh -c "echo $totalvf | sudo tee -a /sys/class/drm/card0/device/sriov_numvfs > /dev/null"
-    sudo sh -c "echo '1' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
-    sudo sh -c "sudo modprobe vfio-pci"
-    sudo sh -c "echo '$vendor $device' | sudo tee -a /sys/bus/pci/drivers/vfio-pci/new_id > /dev/null"
+    # Detect number of VFs
+    numvfs=$(</sys/bus/pci/devices/0000\:00\:02.0/sriov_numvfs)
+
+    if [ $numvfs -lt $totalvfs ]; then
+        # Setup VFIO
+        echo "Enabling $totalvfs VFs"
+        local vendor=$(cat /sys/bus/pci/devices/0000:00:02.0/iommu_group/devices/0000:00:02.0/vendor)
+        local device=$(cat /sys/bus/pci/devices/0000:00:02.0/iommu_group/devices/0000:00:02.0/device)
+        sudo sh -c "modprobe i2c-algo-bit"
+        sudo sh -c "sudo modprobe video"
+        sudo sh -c "echo '0' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
+        sudo sh -c "echo $totalvfs | sudo tee -a /sys/class/drm/card0/device/sriov_numvfs > /dev/null"
+        sudo sh -c "echo '1' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
+        sudo sh -c "sudo modprobe vfio-pci"
+        sudo sh -c "echo '$vendor $device' | sudo tee -a /sys/bus/pci/drivers/vfio-pci/new_id > /dev/null"
+    fi
 
     # Detect first available VF
-    for (( avail=1; avail<=totalvf; avail++ )); do
+    for (( avail=1; avail<=totalvfs; avail++ )); do
         is_enabled=$(</sys/bus/pci/devices/0000:00:02.$avail/enable)
         if [ $is_enabled = 0 ]; then
             echo "Using VF $avail"
@@ -479,6 +485,7 @@ function cleanup_sriov() {
 
         # Clean up if needed
         if [ $do_cleanup -eq 1 ]; then
+            echo "Disabling $numvf VFs"
             sudo sh -c "echo '0' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
             sudo sh -c "echo '0' | sudo tee -a /sys/class/drm/card0/device/sriov_numvfs > /dev/null"
             sudo sh -c "echo '1' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
