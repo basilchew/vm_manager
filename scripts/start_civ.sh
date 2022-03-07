@@ -455,14 +455,21 @@ function setup_sriov() {
         sudo sh -c "echo '$vendor $device' | sudo tee -a /sys/bus/pci/drivers/vfio-pci/new_id > /dev/null"
     fi
 
+    # Detect number of VFs
+    numvfs=$(</sys/bus/pci/devices/0000\:00\:02.0/sriov_numvfs)
+
     # Detect first available VF
-    for (( avail=1; avail<=totalvfs; avail++ )); do
+    for (( avail=1; avail<=numvfs; avail++ )); do
         is_enabled=$(</sys/bus/pci/devices/0000:00:02.$avail/enable)
         if [ $is_enabled = 0 ]; then
             echo "Using VF $avail"
             break;
         fi
     done
+
+    # Configure timeout values
+    echo 50000 > /sys/class/drm/card0/iov/vf$avail/gt/preempt_timeout_us
+    echo 25 > /sys/class/drm/card0/iov/vf$avail/gt/exec_quantum_ms
 
     # Setup configuration
     GUEST_VGA_DEV="-device virtio-vga,max_outputs=1,blob=true, -device vfio-pci,host=0000:00:02.$avail, -object memory-backend-memfd,hugetlb=on,id=mem1,size=${GUEST_MEM:3} -machine memory-backend=mem1"
