@@ -726,7 +726,7 @@ function cleanup() {
     cleanup_thermal_mediation
     cleanup_battery_mediation
     cleanup_pt_pci
-    cleanup_sriov
+#    cleanup_sriov
 }
 
 function error() {
