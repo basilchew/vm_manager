@@ -493,6 +493,12 @@ function cleanup_sriov() {
         # Clean up if needed
         if [ $do_cleanup -eq 1 ]; then
             echo "Disabling $numvf VFs"
+            local vendor=$(cat /sys/bus/pci/devices/0000:00:02.0/iommu_group/devices/0000:00:02.0/vendor)
+            local device=$(cat /sys/bus/pci/devices/0000:00:02.0/iommu_group/devices/0000:00:02.0/device)
+            for (( index = 1; index <= $numvfs; index++ )); do
+                sudo sh -c "echo 0000\:00\:02.$index > /sys/bus/pci/drivers/vfio-pci/unbind"
+            done
+            sudo sh -c "echo $vendor $device | sudo tee -a /sys/bus/pci/drivers/vfio-pci/remove_id > /dev/null"
             sudo sh -c "echo '0' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
             sudo sh -c "echo '0' | sudo tee -a /sys/class/drm/card0/device/sriov_numvfs > /dev/null"
             sudo sh -c "echo '1' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
