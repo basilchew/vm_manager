@@ -11,6 +11,7 @@ cd "$(dirname "$0")/.."
 #------------------------------------------------------      Global variable    ----------------------------------------------------------
 WORK_DIR=$PWD
 SCRIPTS_DIR=$WORK_DIR/scripts
+add_nr_hugepg=0
 
 EMULATOR_PATH=$(which qemu-system-x86_64)
 GUEST_MEM="-m 2G"
@@ -413,6 +414,7 @@ function setup_sriov() {
     free_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/free_hugepages)
     nr_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)
     new_nr_hugepg=$(( nr_hugepg - free_hugepg + required_hugepg ))
+    add_nr_hugepg=$(( new_nr_hugepg - nr_hugepg ))
     echo "Setting hugepages $new_nr_hugepg"
     sudo sh -c "echo $new_nr_hugepg | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages > /dev/null"
 
@@ -468,8 +470,11 @@ function setup_sriov() {
     done
 
     # Configure timeout values
-    echo 50000 > /sys/class/drm/card0/iov/vf$avail/gt/preempt_timeout_us
-    echo 25 > /sys/class/drm/card0/iov/vf$avail/gt/exec_quantum_ms
+    sudo sh -c "echo 50000 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/preempt_timeout_us > /dev/null"
+    sudo sh -c "echo 25 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/exec_quantum_ms > /dev/null"
+    sudo sh -c "echo 8192 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/contexts_quota > /dev/null"
+    sudo sh -c "echo 36 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/doorbells_quota > /dev/null"
+    sudo sh -c "echo 529240064 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/ggtt_quota > /dev/null"
 
     # Setup configuration
     GUEST_VGA_DEV="-device virtio-vga,max_outputs=1,blob=true, -device vfio-pci,host=0000:00:02.$avail, -object memory-backend-memfd,hugetlb=on,id=mem1,size=${GUEST_MEM:3} -machine memory-backend=mem1"
@@ -502,6 +507,12 @@ function cleanup_sriov() {
             sudo sh -c "echo '0' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
             sudo sh -c "echo '0' | sudo tee -a /sys/class/drm/card0/device/sriov_numvfs > /dev/null"
             sudo sh -c "echo '1' | sudo tee -a /sys/bus/pci/devices/0000\:00\:02.0/sriov_drivers_autoprobe > /dev/null"
+
+            # restore hugepg value
+            nr_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)
+            restore_nr_hugepg=$(( nr_hugepg - add_nr_hugepg ))
+            echo "Restoring hugepages $restore_nr_hugepg"
+            sudo sh -c "echo $restore_nr_hugepg | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages > /dev/null"
         fi
     fi
 }
@@ -732,7 +743,7 @@ function cleanup() {
     cleanup_thermal_mediation
     cleanup_battery_mediation
     cleanup_pt_pci
-#    cleanup_sriov
+    cleanup_sriov
 }
 
 function error() {
