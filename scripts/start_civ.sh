@@ -11,7 +11,6 @@ cd "$(dirname "$0")/.."
 #------------------------------------------------------      Global variable    ----------------------------------------------------------
 WORK_DIR=$PWD
 SCRIPTS_DIR=$WORK_DIR/scripts
-add_nr_hugepg=0
 
 EMULATOR_PATH=$(which qemu-system-x86_64)
 GUEST_MEM="-m 2G"
@@ -414,7 +413,6 @@ function setup_sriov() {
     free_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/free_hugepages)
     nr_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)
     new_nr_hugepg=$(( nr_hugepg - free_hugepg + required_hugepg ))
-    add_nr_hugepg=$(( new_nr_hugepg - nr_hugepg ))
     echo "Setting hugepages $new_nr_hugepg"
     sudo sh -c "echo $new_nr_hugepg | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages > /dev/null"
 
@@ -510,9 +508,11 @@ function cleanup_sriov() {
 
             # restore hugepg value
             nr_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)
-            restore_nr_hugepg=$(( nr_hugepg - add_nr_hugepg ))
-            echo "Restoring hugepages $restore_nr_hugepg"
-            sudo sh -c "echo $restore_nr_hugepg | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages > /dev/null"
+            free_hugepg=$(</sys/kernel/mm/hugepages/hugepages-2048kB/free_hugepages)
+            if [ $free_hugepg -eq $nr_hugepg ]; then
+                echo "Restoring hugepages"
+                sudo sh -c "echo 0 | sudo tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages > /dev/null"
+            fi
         fi
     fi
 }
