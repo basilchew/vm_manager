@@ -470,9 +470,9 @@ function setup_sriov() {
     # Configure timeout values
     sudo sh -c "echo 50000 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/preempt_timeout_us > /dev/null"
     sudo sh -c "echo 25 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/exec_quantum_ms > /dev/null"
-    sudo sh -c "echo 8192 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/contexts_quota > /dev/null"
-    sudo sh -c "echo 36 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/doorbells_quota > /dev/null"
-    sudo sh -c "echo 529240064 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/ggtt_quota > /dev/null"
+#    sudo sh -c "echo 8192 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/contexts_quota > /dev/null"
+#    sudo sh -c "echo 36 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/doorbells_quota > /dev/null"
+#    sudo sh -c "echo 529240064 | sudo tee -a /sys/class/drm/card0/iov/vf$avail/gt/ggtt_quota > /dev/null"
 
     # Setup configuration
     GUEST_VGA_DEV="-device virtio-vga,max_outputs=1,blob=true, -device vfio-pci,host=0000:00:02.$avail, -object memory-backend-memfd,hugetlb=on,id=mem1,size=${GUEST_MEM:3} -machine memory-backend=mem1"
@@ -743,7 +743,7 @@ function cleanup() {
     cleanup_thermal_mediation
     cleanup_battery_mediation
     cleanup_pt_pci
-    cleanup_sriov
+#    cleanup_sriov
 }
 
 function error() {
