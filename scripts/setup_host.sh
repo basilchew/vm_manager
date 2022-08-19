@@ -312,7 +312,9 @@ function ubu_install_swtpm() {
         fi
     done
 
-    reboot_required=1
+    #load profile
+    sudo apparmor_parser -r /etc/apparmor.d/usr.bin.swtpm
+
 }
 
 function ubu_install_libssl() {
