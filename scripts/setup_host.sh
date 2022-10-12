@@ -308,10 +308,10 @@ function ubu_install_swtpm() {
     sed -i "s/#include <local\/usr.bin.swtpm>/include <local\/usr.bin.swtpm>/g" /etc/apparmor.d/usr.bin.swtpm
 
     #update local apparmor profile usr.bin.swtpm
-    local_swtpm_profile=("owner /home/**/vtpm0/.lock wk,"
-                         "owner /home/**/vtpm0/swtpm-sock w,"
-                         "owner /home/**/vtpm0/TMP2-00.permall rw,"
-                         "owner /home/**/vtpm0/tpm2-00.permall rw,")
+    local_swtpm_profile=("owner /home/**/vtpm?/.lock wk,"
+                         "owner /home/**/vtpm?/swtpm-sock w,"
+                         "owner /home/**/vtpm?/TMP2-00.permall rw,"
+                         "owner /home/**/vtpm?/tpm2-00.permall rw,")
 
     for rule in "${local_swtpm_profile[@]}"; do
         if [[ ! `cat /etc/apparmor.d/local/usr.bin.swtpm` =~ "$rule" ]]; then

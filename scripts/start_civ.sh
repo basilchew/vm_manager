@@ -12,11 +12,22 @@ cd "$(dirname "$0")/.."
 WORK_DIR=$PWD
 SCRIPTS_DIR=$WORK_DIR/scripts
 
+I=0
+MAX_NUM_GUEST=7
+for (( avail=0; avail<$MAX_NUM_GUEST; avail++ )); do
+    if [ ! -S "$WORK_DIR/rpmb_sock$avail" ]; then
+        I=$avail
+        break;
+    fi
+done
+CONSOLE_PORT=$(( 5554 + $(( $I * 2 )) ))
+ADB_PORT=$(( $CONSOLE_PORT + 1 ))
+
 EMULATOR_PATH=$(which qemu-system-x86_64)
 GUEST_MEM="-m 2G"
 GUEST_CPU_NUM="-smp 1"
-GUEST_DISK="-drive file=$WORK_DIR/android.qcow2,if=none,id=disk1,discard=unmap,detect-zeroes=unmap"
-GUEST_FIRMWARE="-drive file=$WORK_DIR/OVMF.fd,format=raw,if=pflash"
+GUEST_DISK="-drive file=$WORK_DIR/android$I.qcow2,if=none,id=disk1,discard=unmap,detect-zeroes=unmap"
+GUEST_FIRMWARE="-drive file=$WORK_DIR/OVMF$I.fd,format=raw,if=pflash"
 GUEST_DISP_TYPE="-display gtk,gl=on"
 GUEST_KIRQ_CHIP="-machine kernel_irqchip=on"
 GUEST_VGA_DEV="-device virtio-gpu-pci"
@@ -25,13 +36,13 @@ GUEST_RPMB_DEV_PID=
 GUEST_RPMB_DEV_SOCK=
 GUEST_THERMAL_DAEMON_PID=
 GUEST_BATTERY_DAEMON_PID=
-GUEST_IMAGE=$WORK_DIR/android.qcow2
-GUEST_VSOCK="-device vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=3"
+GUEST_IMAGE=$WORK_DIR/android$I.qcow2
+GUEST_VSOCK="-device vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=$(( 3 + $I ))"
 GUEST_SHARE_FOLDER=
 GUEST_SMBIOS_SERIAL=$(dmidecode -t 2 | grep -i serial | awk '{print $3}')
 GUEST_QMP_SOCK=$WORK_DIR/.civ.qmp.sock
 GUEST_QMP_UNIX="-qmp unix:$GUEST_QMP_SOCK,server=on,wait=off"
-GUEST_NET="-device e1000,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=tcp::5554-:5554"
+GUEST_NET="-device e1000,netdev=net$I -netdev user,id=net$I,hostfwd=tcp::$ADB_PORT-:5555,hostfwd=tcp::$CONSOLE_PORT-:5554"
 GUEST_BLK_DEV=
 GUEST_AUDIO_DEV="-device intel-hda -device hda-duplex,audiodev=android_spk -audiodev id=android_spk,timer-period=5000,server=$XDG_RUNTIME_DIR/pulse/native,driver=pa"
 GUEST_EXTRA_QCMD=
@@ -43,7 +54,7 @@ GUEST_WIFI_PT_DEV=
 GUEST_PCI_PT_ARRAY=()
 GUEST_PM_CTRL=
 GUEST_TIME_KEEP=
-GUSET_VTPM="-chardev socket,id=chrtpm,path=$WORK_DIR/vtpm0/swtpm-sock -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-crb,tpmdev=tpm0"
+GUSET_VTPM="-chardev socket,id=chrtpm,path=$WORK_DIR/vtpm$I/swtpm-sock -tpmdev emulator,id=tpm$I,chardev=chrtpm -device tpm-crb,tpmdev=tpm$I"
 GUEST_QMP_PIPE=
 GUEST_AAF="-fsdev local,security_model=none,id=fsdev_aaf,path=$WORK_DIR/aaf -device virtio-9p-pci,fsdev=fsdev_aaf,mount_tag=aaf"
 GUEST_AAF_DIR=$WORK_DIR/aaf
@@ -62,7 +73,7 @@ GUEST_STATIC_OPTION="\
  -enable-kvm \
  -k en-us \
  -cpu host,-waitpkg \
- -chardev socket,id=charserial0,path=$WORK_DIR/kernel-console,server=on,wait=off,logfile=$WORK_DIR/civ_serial.log \
+ -chardev socket,id=charserial0,path=$WORK_DIR/kernel-console$I,server=on,wait=off,logfile=$WORK_DIR/civ_serial$I.log \
  -serial chardev:charserial0 \
  -device virtio-blk-pci,drive=disk1,bootindex=1 \
  -device intel-iommu,device-iotlb=on,caching-mode=on \
@@ -127,8 +138,8 @@ function kill_daemon_proc() {
 
 function setup_rpmb_dev() {
     local RPMB_DEV=$SCRIPTS_DIR/rpmb_dev
-    local RPMB_DATA=$WORK_DIR/RPMB_DATA
-    GUEST_RPMB_DEV_SOCK=$WORK_DIR/rpmb_sock
+    local RPMB_DATA=$WORK_DIR/RPMB_DATA$I
+    GUEST_RPMB_DEV_SOCK=$WORK_DIR/rpmb_sock$I
     # RPMB_DATA is created and initialized with specific key, if this file
     # is deleted by accidently, create a new one without any data.
     if [ ! -f $RPMB_DATA ]; then
@@ -158,7 +169,7 @@ function setup_rpmb_dev() {
         fi
     done
 
-    GUEST_RPMB_DEV="-device virtio-serial -device virtserialport,chardev=rpmb0,name=rpmb0 -chardev socket,id=rpmb0,path=$GUEST_RPMB_DEV_SOCK"
+    GUEST_RPMB_DEV="-device virtio-serial -device virtserialport,chardev=rpmb$I,name=rpmb$I -chardev socket,id=rpmb$I,path=$GUEST_RPMB_DEV_SOCK"
     GUEST_RPMB_DEV_PID=$rpmb_dev_pid
 }
 
@@ -169,8 +180,8 @@ function cleanup_rpmb_dev() {
 
 function setup_swtpm() {
     #start software Trusted Platform Module
-    mkdir -p $WORK_DIR/vtpm0
-    swtpm socket --tpmstate dir=$WORK_DIR/vtpm0 --tpm2 --ctrl type=unixio,path=$WORK_DIR/vtpm0/swtpm-sock &
+    mkdir -p $WORK_DIR/vtpm$I
+    swtpm socket --tpmstate dir=$WORK_DIR/vtpm$I --tpm2 --ctrl type=unixio,path=$WORK_DIR/vtpm$I/swtpm-sock &
 }
 
 function setup_thermal_mediation() {
